@@ -10,7 +10,7 @@ authors:
 version: "2026.1"
 date-released: "2026-11-21"
 license: MIT
-repository-code: "https://github.com/USUARIO/utec-regularidad-anomalias-ros2"
+repository-code: "https://github.com/jorrgut/utec-regularidad-anomalias-ros2"
 keywords:
   - ROS 2
   - anomaly detection

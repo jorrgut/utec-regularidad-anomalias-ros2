@@ -41,7 +41,7 @@ El repositorio completo se monta dentro del contenedor en `~/project`. Los scrip
 Requisitos: Linux con entorno gráfico (X11), Docker y Docker Compose, y unos 10 GB libres.
 
 ```bash
-git clone https://github.com/USUARIO/utec-regularidad-anomalias-ros2.git
+git clone https://github.com/jorrgut/utec-regularidad-anomalias-ros2.git
 cd utec-regularidad-anomalias-ros2
 xhost +local:docker
 docker compose up -d --build              # la primera vez tarda 20–40 min
