@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+
+# Datos y salidas que generan los scripts (se regeneran)
+codigos/**/data/
+codigos/**/outputs_*/
+codigos/**/models/
+codigos/integrador/caso_*/
+**/solucion_NO_DISTRIBUIR/
+
+# Workspaces de ROS 2: solo se versiona la carpeta src/ vacía
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+ros2_ws_jazzy/build/
+ros2_ws_jazzy/install/
+ros2_ws_jazzy/log/
+
+# Editores y sistema
+.vscode/
+.idea/
+*.swp
+.DS_Store

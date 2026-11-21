@@ -1,0 +1,131 @@
+GUÍA RÁPIDA (LO MÁS IMPORTANTE)
+Docker + Docker Compose para un entorno ROS 2 Jazzy (Gazebo Harmonic)
+================================================
+
+1) Conceptos clave
+------------------
+• Imagen Docker: plantilla inmutable con SO, librerías, dependencias y configuración.
+  (Piensa “plantilla/base”).
+• Contenedor Docker: instancia en ejecución de una imagen (entorno aislado donde corren procesos).
+
+Relación:
+Dockerfile --build--> Imagen --run--> Contenedor
+Una misma imagen puede generar múltiples contenedores.
+
+2) Estructura mínima del proyecto
+---------------------------------
+Carpeta de trabajo (ejemplo):
+utec_optativa_ros2_jazzy/
+|-- Dockerfile            (cómo construir la imagen)
+|-- docker-compose.yml    (orquesta el contenedor/servicio)
+|-- entrypoint.sh         (script de inicialización)
++-- codigos/              (códigos de las Unidades 1 a 6, cada una con su README)
+
+Nombres importantes (en docker-compose.yml):
+• ros2 = nombre del SERVICIO (se usa con docker-compose)
+• utec_ros2_jazzy = nombre del CONTENEDOR (se usa con docker)
+
+3) Permisos necesarios
+----------------------
+Dar permiso de ejecución al entrypoint:
+cd utec_optativa_ros2_jazzy
+chmod +x entrypoint.sh
+
+Sin esto, el contenedor puede no iniciar correctamente.
+
+4) Primera vez: construir y levantar
+------------------------------------
+Habilitar las ventanas gráficas (Gazebo, rqt), una vez por sesión:
+xhost +local:docker
+
+Construir imagen y levantar contenedor:
+docker-compose up -d --build
+
+La primera construcción tarda entre 20 y 40 minutos (descarga varios GB).
+Si no vas a usar la Unidad 6, podés construir sin PyTorch (más liviana):
+docker-compose build --build-arg INSTALL_TORCH=0
+docker-compose up -d
+
+Luego (si no cambió el Dockerfile), alcanza con:
+docker-compose up -d
+
+5) Entrar al contenedor (2 opciones equivalentes)
+-------------------------------------------------
+Opción 1 (recomendada si trabajás con compose):
+docker-compose exec ros2 bash
+
+Opción 2 (usando docker directo):
+docker exec -it utec_ros2_jazzy bash
+
+Nota: el error típico es escribir “docker exe” en vez de “docker exec”.
+
+6) Trabajar dentro del contenedor
+---------------------------------
+Dentro del contenedor tenés el entorno ROS 2 listo.
+La carpeta local utec_optativa_ros2_jazzy/ queda montada y sincronizada dentro del contenedor en:
+/home/student/project/
+
+Eso permite editar en tu editor local y ejecutar inmediatamente en el contenedor.
+
+Verificar el entorno (la primera vez):
+echo $ROS_DISTRO                  -> jazzy
+python3 -c "import numpy, pandas, matplotlib; print(numpy.__version__)"   -> 1.26.4
+python3 -c "import torch; print(torch.__version__)"                       -> 2.5.1+cpu
+ros2 launch turtlebot3_gazebo empty_world.launch.py                       -> abre Gazebo
+
+Los códigos de cada unidad están en:
+/home/student/project/codigos/u1 ... u6
+(seguí el README.md de cada carpeta).
+
+7) Salir sin detener el contenedor
+----------------------------------
+exit
+(o Ctrl+D)
+El contenedor sigue corriendo en segundo plano.
+
+8) Detener / eliminar el contenedor
+-----------------------------------
+• Detener temporalmente (conserva estado):
+docker-compose stop
+(Reanudar: docker-compose start)
+
+• Detener y eliminar (crea uno nuevo la próxima vez):
+docker-compose down
+(La imagen queda guardada; normalmente no hace falta reconstruir.)
+
+9) Flujo de trabajo típico
+--------------------------
+1) cd utec_optativa_ros2_jazzy
+2) xhost +local:docker
+   docker-compose up -d
+3) entrar:
+   - docker-compose exec ros2 bash
+   o
+   - docker exec -it utec_ros2_jazzy bash
+4) trabajar
+5) exit (salida temporal)
+6) volver a entrar cuando quieras
+7) al final:
+   docker-compose down
+8) al terminar la sesión (opcional, por seguridad):
+   xhost -local:docker
+
+10) Si algo no anda
+-------------------
+• "ros2: command not found": no estás dentro del contenedor.
+• Gazebo no abre: faltó "xhost +local:docker" antes de levantar el contenedor.
+• Cambios que se pierden: trabajá siempre dentro de /home/student/project.
+• Cambiaste el Dockerfile: reconstruí con docker-compose up -d --build.
+
+11) Diferencias con la versión Humble
+-------------------------------------
+• /cmd_vel es geometry_msgs/TwistStamped (en Humble era Twist). Los nodos y scripts
+  del curso lo detectan solos con ROS_DISTRO; para forzarlo: --stamped (scripts de la
+  Unidad 1) o -p stamped:=true (nodos del paquete).
+• Con TwistStamped el logger guarda una columna más, t_stamp (hora del emisor).
+• Para publicar a mano:
+  ros2 topic pub --once /cmd_vel geometry_msgs/msg/TwistStamped "{}"
+• Gazebo Harmonic necesita OpenGL. Si se ve negro o muy lento, descomentá en
+  docker-compose.yml las líneas "devices: - /dev/dri:/dev/dri" y reconstruí.
+• Esta carpeta y la de Humble pueden convivir: usan nombres de contenedor e
+  imagen distintos (utec_ros2_jazzy / utec_ros2_humble).

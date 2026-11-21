@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "Si usás estos materiales, citalos con estos datos."
+title: "Análisis de regularidad y detección de anomalías en sistemas robóticos: códigos y entorno de laboratorio"
+type: software
+authors:
+  - family-names: "Gutiérrez"
+    given-names: "Jorge N."
+    affiliation: "Universidad Tecnológica del Uruguay (UTEC)"
+    # orcid: "https://orcid.org/0000-0000-0000-0000"   # completar con tu ORCID
+version: "2026.1"
+date-released: "2026-11-21"
+license: MIT
+repository-code: "https://github.com/USUARIO/utec-regularidad-anomalias-ros2"
+keywords:
+  - ROS 2
+  - anomaly detection
+  - time series
+  - entropy
+  - autoencoder
+  - LSTM
+  - robotics education

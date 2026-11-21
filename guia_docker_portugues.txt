@@ -1,0 +1,118 @@
+GUIA RÁPIDO (O MAIS IMPORTANTE)
+Docker + Docker Compose para ambiente ROS 2
+===========================================
+
+1) Conceitos-chave
+------------------
+• Imagem Docker: modelo imutável com SO, bibliotecas, dependências e configurações.
+  (pense como uma “base”).
+• Contêiner Docker: instância em execução de uma imagem (ambiente isolado onde os processos rodam).
+
+Relação:
+Dockerfile --build--> Imagem --run--> Contêiner
+Uma mesma imagem pode gerar múltiplos contêineres.
+
+2) Estrutura mínima do projeto
+------------------------------
+Pasta de trabalho (exemplo):
+utec_optativa_ros2/
+|-- Dockerfile            (como construir a imagem)
+|-- docker-compose.yml    (orquestra o contêiner/serviço)
+|-- entrypoint.sh         (script de inicialização)
++-- codigos/              (códigos das Unidades 1 a 6, cada uma com seu README)
+
+Nomes importantes (no docker-compose.yml):
+• ros2 = nome do SERVIÇO (usado com docker-compose)
+• utec_ros2_humble = nome do CONTÊINER (usado com docker)
+
+3) Permissões necessárias
+-------------------------
+Conceder permissão de execução ao entrypoint:
+cd utec_optativa_ros2
+chmod +x entrypoint.sh
+
+Sem isso, o contêiner pode não iniciar corretamente.
+
+4) Primeira vez: construir e subir
+----------------------------------
+Habilitar as janelas gráficas (Gazebo, rqt), uma vez por sessão:
+xhost +local:docker
+
+Construir a imagem e subir o contêiner:
+docker-compose up -d --build
+
+A primeira construção leva de 20 a 40 minutos (baixa vários GB).
+Se não for usar a Unidade 6, é possível construir sem PyTorch (mais leve):
+docker-compose build --build-arg INSTALL_TORCH=0
+docker-compose up -d
+
+Depois (se o Dockerfile não mudou), basta:
+docker-compose up -d
+
+5) Entrar no contêiner (2 opções equivalentes)
+----------------------------------------------
+Opção 1 (recomendada ao usar compose):
+docker-compose exec ros2 bash
+
+Opção 2 (usando docker diretamente):
+docker exec -it utec_ros2_humble bash
+
+Nota: erro comum é digitar “docker exe” em vez de “docker exec”.
+
+6) Trabalhar dentro do contêiner
+--------------------------------
+Dentro do contêiner você tem o ambiente ROS 2 configurado.
+A pasta local utec_optativa_ros2/ fica montada e sincronizada no contêiner em:
+/home/student/project/
+
+Isso permite editar arquivos localmente e executá-los imediatamente no contêiner.
+
+Verificar o ambiente (na primeira vez):
+echo $ROS_DISTRO                  -> humble
+python3 -c "import numpy, pandas, matplotlib; print(numpy.__version__)"   -> 1.26.4
+python3 -c "import torch; print(torch.__version__)"                       -> 2.5.1+cpu
+ros2 launch turtlebot3_gazebo empty_world.launch.py                       -> abre o Gazebo
+
+Os códigos de cada unidade estão em:
+/home/student/project/codigos/u1 ... u6
+(siga o README.md de cada pasta; os READMEs estão em espanhol).
+
+7) Sair sem parar o contêiner
+-----------------------------
+exit
+(ou Ctrl+D)
+O contêiner continua rodando em segundo plano.
+
+8) Parar / remover o contêiner
+-------------------------------
+• Parar temporariamente (mantém o estado):
+docker-compose stop
+(Reiniciar depois: docker-compose start)
+
+• Parar e remover:
+docker-compose down
+(O contêiner é removido; a imagem permanece.)
+
+9) Fluxo de trabalho típico
+---------------------------
+1) cd utec_optativa_ros2
+2) xhost +local:docker
+   docker-compose up -d
+3) entrar:
+   - docker-compose exec ros2 bash
+   ou
+   - docker exec -it utec_ros2_humble bash
+4) trabalhar
+5) exit (saída temporária)
+6) entrar novamente quando necessário
+7) ao final:
+   docker-compose down
+8) ao terminar a sessão (opcional, por segurança):
+   xhost -local:docker
+
+10) Se algo não funcionar
+-------------------------
+• "ros2: command not found": você não está dentro do contêiner.
+• O Gazebo não abre: faltou "xhost +local:docker" antes de subir o contêiner.
+• Alterações que se perdem: trabalhe sempre dentro de /home/student/project.
+• Alterou o Dockerfile: reconstrua com docker-compose up -d --build.

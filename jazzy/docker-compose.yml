@@ -1,0 +1,29 @@
+name: utec_optativa_jazzy
+
+# Entorno alternativo: ROS 2 Jazzy + Gazebo Harmonic (Ubuntu 24.04).
+# Se ejecuta desde esta carpeta (jazzy/). Monta el repositorio completo en
+# ~/project, igual que el entorno Humble, pero con un workspace propio
+# (ros2_ws_jazzy/), para que lo compilado en Humble y en Jazzy no se mezcle.
+
+services:
+  ros2:
+    build: .
+    container_name: utec_ros2_jazzy
+    stdin_open: true
+    tty: true
+    network_mode: host
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - ROS_DOMAIN_ID=0
+      - ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST   # en Jazzy reemplaza a ROS_LOCALHOST_ONLY
+      - TURTLEBOT3_MODEL=burger
+    volumes:
+      - ../:/home/student/project:rw
+      - ../ros2_ws_jazzy:/home/student/project/ros2_ws:rw
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    working_dir: /home/student/project
+    # Gazebo Harmonic dibuja con OpenGL. Si tu máquina tiene /dev/dri (Intel/AMD),
+    # descomentá estas dos líneas para usar la placa de video:
+    # devices:
+    #   - /dev/dri:/dev/dri

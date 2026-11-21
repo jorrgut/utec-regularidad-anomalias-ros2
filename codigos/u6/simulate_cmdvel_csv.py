@@ -1,0 +1,214 @@
+#!/usr/bin/env python3
+"""
+Genera un CSV sintético con el mismo formato que cmd_vel_logger.py (Unidad 1).
+
+Sirve para practicar la auditoría sin ROS 2, o para preparar ejercicios con
+irregularidades conocidas. Implementa el modelo de llegada de la unidad:
+
+    t_k = t_0 + k*T + eps_k + L_k
+
+con jitter del temporizador (eps), latencia variable (L) y eventos opcionales:
+mensajes perdidos, una pausa, retrasos aislados (par largo-corto) e
+inyección de mensajes extra (flooding) y reinyección de comandos grabados (replay).
+
+Ejemplos:
+    python3 simulate_cmdvel_csv.py --out data/sintetico_limpio.csv
+    python3 simulate_cmdvel_csv.py --out data/sintetico_eventos.csv \
+        --drop-prob 0.01 --pause-at 150 --pause-len 2.0 --n-delays 5
+    python3 simulate_cmdvel_csv.py --out data/sintetico_flood.csv \
+        --flood-at 200 --flood-len 10 --flood-rate 40
+    python3 simulate_cmdvel_csv.py --out data/sintetico_replay.csv \
+        --replay-at 200 --replay-len 10 --replay-shift 6.5 --replay-mode add
+
+Modos (Unidad 6, los mismos del nodo cmd_vel_generator de la Unidad 5):
+    --mode structured       el ciclo avanzar / detener / girar / detener (por defecto)
+    --mode shuffle_blocks   bloques de --block-len mensajes con una fase al azar
+    --mode iid              v y w uniformes al azar en cada mensaje
+    python3 simulate_cmdvel_csv.py --out data/shuffle.csv --mode shuffle_blocks --seed 3
+
+Segmento anómalo dentro de una corrida (pérdida de estructura durante un intervalo):
+    python3 simulate_cmdvel_csv.py --out data/eventos.csv --duration 600 \
+        --segment-mode shuffle_blocks --segment-at 150 --segment-len 30
+"""
+import argparse
+import csv
+import os
+
+import numpy as np
+
+
+def pattern(t, v_fwd, w_turn, t_fwd, t_turn, t_stop):
+    cycle = t_fwd + t_stop + t_turn + t_stop
+    tau = t % cycle
+    if tau < t_fwd:
+        return v_fwd, 0.0
+    if tau < t_fwd + t_stop:
+        return 0.0, 0.0
+    if tau < t_fwd + t_stop + t_turn:
+        return 0.0, w_turn
+    return 0.0, 0.0
+
+
+PHASES = ('fwd', 'stop', 'turn', 'stop')
+
+
+class Values:
+    """
+    Valor (v, w) de cada mensaje según el modo. El valor depende del instante PLANIFICADO
+    t_plan (el que el generador "quería" publicar), así un replay reenvía valores viejos.
+      structured      el patrón periódico
+      shuffle_blocks  bloque = floor(t_plan * rate / block_len); fase al azar por bloque
+      iid             uniforme al azar en cada mensaje
+    """
+
+    def __init__(self, args, rng):
+        self.a, self.rng = args, rng
+        self.block_phase = {}
+
+    def _phase_values(self, ph):
+        a = self.a
+        return {'fwd': (a.v_fwd, 0.0), 'stop': (0.0, 0.0), 'turn': (0.0, a.w_turn)}[ph]
+
+    def __call__(self, tp, mode):
+        a = self.a
+        if mode == 'structured':
+            return pattern(tp, a.v_fwd, a.w_turn, a.t_fwd, a.t_turn, a.t_stop)
+        if mode == 'shuffle_blocks':
+            b = int(np.floor(tp * a.rate / a.block_len + 1e-9))
+            if b not in self.block_phase:
+                self.block_phase[b] = PHASES[self.rng.integers(len(PHASES))]
+            return self._phase_values(self.block_phase[b])
+        return float(self.rng.uniform(0, a.v_fwd)), float(self.rng.uniform(0, a.w_turn))
+
+
+def main():
+    p = argparse.ArgumentParser(description='CSV sintético de /cmd_vel')
+    p.add_argument('--out', default='data/cmdvel_sintetico.csv')
+    p.add_argument('--rate', type=float, default=10.0, help='frecuencia nominal (Hz)')
+    p.add_argument('--duration', type=float, default=300.0, help='duración (s)')
+    p.add_argument('--timer-jitter', type=float, default=0.002,
+                   help='desvío estándar del error del temporizador (s)')
+    p.add_argument('--lat-mean', type=float, default=0.005, help='latencia media (s)')
+    p.add_argument('--lat-jitter', type=float, default=0.001,
+                   help='desvío estándar de la latencia (s)')
+    p.add_argument('--drop-prob', type=float, default=0.0,
+                   help='probabilidad de perder cada mensaje')
+    p.add_argument('--pause-at', type=float, default=None, help='instante de una pausa (s)')
+    p.add_argument('--pause-len', type=float, default=0.0, help='duración de la pausa (s)')
+    p.add_argument('--n-delays', type=int, default=0,
+                   help='cantidad de mensajes con retraso aislado')
+    p.add_argument('--delay-len', type=float, default=0.06, help='retraso aislado (s)')
+    p.add_argument('--quantum', type=float, default=0.0,
+                   help='cuantización del reloj (s), p. ej. 0.001 para imitar sim time')
+    p.add_argument('--flood-at', type=float, default=None,
+                   help='inicio de una inyección de mensajes extra (s)')
+    p.add_argument('--flood-len', type=float, default=0.0, help='duración de la inyección (s)')
+    p.add_argument('--flood-rate', type=float, default=40.0,
+                   help='mensajes extra por segundo durante la inyección')
+    p.add_argument('--replay-at', type=float, default=None,
+                   help='inicio de una reinyección de comandos grabados (s)')
+    p.add_argument('--replay-len', type=float, default=0.0, help='duración de la reinyección (s)')
+    p.add_argument('--replay-shift', type=float, default=6.5,
+                   help='antigüedad de los comandos reinyectados (s): se reenvía lo que el '
+                        'generador publicó replay-shift segundos antes')
+    p.add_argument('--replay-mode', choices=['add', 'replace'], default='add',
+                   help='add: se suman a los legítimos (sube la tasa de mensajes); '
+                        'replace: los reemplazan (la tasa no cambia)')
+    p.add_argument('--mode', choices=['structured', 'shuffle_blocks', 'iid'],
+                   default='structured', help='modo del generador')
+    p.add_argument('--block-len', type=int, default=30,
+                   help='mensajes por bloque en shuffle_blocks')
+    p.add_argument('--segment-mode', choices=['shuffle_blocks', 'iid'], action='append',
+                   default=None, help='modo de un segmento anómalo (se puede repetir)')
+    p.add_argument('--segment-at', type=float, action='append', default=None,
+                   help='inicio del segmento (s); uno por cada --segment-mode')
+    p.add_argument('--segment-len', type=float, action='append', default=None,
+                   help='duración del segmento (s); una por cada --segment-mode')
+    p.add_argument('--seed', type=int, default=42)
+    p.add_argument('--v-fwd', type=float, default=0.20)
+    p.add_argument('--w-turn', type=float, default=0.80)
+    p.add_argument('--t-fwd', type=float, default=6.0)
+    p.add_argument('--t-turn', type=float, default=3.0)
+    p.add_argument('--t-stop', type=float, default=2.0)
+    args = p.parse_args()
+    segs = args.segment_mode or []
+    ats, lens = args.segment_at or [], args.segment_len or []
+    if not (len(segs) == len(ats) == len(lens)):
+        p.error('cada --segment-mode necesita su --segment-at y su --segment-len')
+    segments = list(zip(segs, ats, lens))
+
+    rng = np.random.default_rng(args.seed)
+    T = 1.0 / args.rate
+    n = int(args.duration * args.rate)
+    k = np.arange(n)
+    t_plan = k * T
+
+    eps = rng.normal(0.0, args.timer_jitter, n)
+    lat = np.clip(rng.normal(args.lat_mean, args.lat_jitter, n), 0.0, None)
+
+    # Retrasos aislados: afectan solo a la latencia de un mensaje
+    if args.n_delays > 0:
+        idx = rng.choice(np.arange(1, n - 1), size=min(args.n_delays, n - 2), replace=False)
+        lat[idx] += args.delay_len
+
+    t_rx = t_plan + eps + lat
+
+    # Pausa: nada se publica dentro de [pause_at, pause_at + pause_len)
+    keep = np.ones(n, dtype=bool)
+    if args.pause_at is not None and args.pause_len > 0:
+        keep &= ~((t_plan >= args.pause_at) & (t_plan < args.pause_at + args.pause_len))
+    if args.drop_prob > 0:
+        keep &= rng.random(n) >= args.drop_prob
+
+    t_plan, t_rx = t_plan[keep], t_rx[keep]
+
+    # Inyección: mensajes extra en instantes al azar, con valores legítimos
+    # (los que el patrón tendría en ese instante), como haría un atacante
+    if args.flood_at is not None and args.flood_len > 0:
+        n_f = int(args.flood_len * args.flood_rate)
+        t_f = np.sort(rng.uniform(args.flood_at, args.flood_at + args.flood_len, n_f))
+        t_plan = np.r_[t_plan, t_f]
+        t_rx = np.r_[t_rx, t_f + lat.mean()]
+
+    # Replay: comandos legítimos grabados replay-shift segundos antes, reenviados ahora.
+    # t_plan guarda el instante cuyo valor lleva cada mensaje; t_rx, cuándo llega.
+    if args.replay_at is not None and args.replay_len > 0:
+        a, b = args.replay_at, args.replay_at + args.replay_len
+        inside = (t_plan >= a) & (t_plan < b)
+        t_rep = t_plan[inside]
+        if args.replay_mode == 'add':
+            # intercalados entre los legítimos, medio período después
+            t_plan = np.r_[t_plan, t_rep - args.replay_shift]
+            t_rx = np.r_[t_rx, t_rep + T / 2 + lat.mean()]
+        else:
+            # los legítimos de ese intervalo se reemplazan por los grabados
+            t_plan = np.where(inside, t_plan - args.replay_shift, t_plan)
+    order = np.argsort(t_rx, kind='stable')     # un mensaje retrasado puede llegar después
+    t_plan, t_rx = t_plan[order], t_rx[order]
+    if args.quantum > 0:
+        t_rx = np.floor(t_rx / args.quantum) * args.quantum
+    t_rx = t_rx - t_rx[0]
+
+    folder = os.path.dirname(args.out)
+    if folder:
+        os.makedirs(folder, exist_ok=True)
+    with open(args.out, 'w', newline='') as f:
+        w = csv.writer(f)
+        w.writerow(['t_sec', 'v', 'w', 'dt'])
+        prev = None
+        values = Values(args, np.random.default_rng(args.seed + 1000))
+        for tp, tr in zip(t_plan, t_rx):
+            mode = args.mode
+            for s_mode, s_at, s_len in segments:
+                if s_at <= tp < s_at + s_len:
+                    mode = s_mode
+            v, om = values(tp, mode)
+            dt = '' if prev is None else f'{tr - prev:.9f}'
+            w.writerow([f'{tr:.9f}', v, om, dt])
+            prev = tr
+
+    print(f'Generadas {len(t_rx)} muestras en {args.out}')
+
+
+if __name__ == '__main__':
+    main()

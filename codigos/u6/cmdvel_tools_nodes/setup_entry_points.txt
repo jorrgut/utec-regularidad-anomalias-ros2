@@ -1,0 +1,14 @@
+# Unidad 6: un nodo nuevo, model_error. Copiá en ros2_ws/src/cmdvel_tools/cmdvel_tools/:
+#     model_error.py, cmdvel_msg.py, u6_data.py y u6_models.py
+# y reemplazá csv_logger.py por el de esta carpeta (registra también /model_metrics).
+# (u6_data.py y u6_models.py son los mismos de la carpeta principal de la unidad: si los
+#  modificás, volvé a copiarlos para que el nodo calcule exactamente lo mismo).
+#
+# Agregá esta línea en setup.py, dentro de entry_points, junto a las de la Unidad 5:
+
+        'model_error = cmdvel_tools.model_error:main',
+
+# Y en package.xml, si no están:
+#   <exec_depend>python3-pandas</exec_depend>
+# PyTorch no tiene paquete de rosdep: se instala con pip en el mismo entorno de Python que
+# usa ROS 2 (ver README, "Instalación").

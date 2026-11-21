@@ -1,0 +1,5 @@
+# Los scripts de shell tienen que tener fin de línea LF aunque se clone en Windows
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.py text eol=lf

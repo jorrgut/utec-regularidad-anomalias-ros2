@@ -1,0 +1,24 @@
+# Copiá TODOS los .py de esta carpeta (incluido cmdvel_msg.py, que resuelve Twist /
+# TwistStamped según ROS_DISTRO) a ros2_ws/src/cmdvel_tools/cmdvel_tools/.
+#
+# Agregar estas líneas en ros2_ws/src/cmdvel_tools/setup.py, dentro de entry_points,
+# junto a las que ya tengas (por ejemplo, dummy_node de la Unidad 1):
+
+entry_points={
+    'console_scripts': [
+        'dummy_node = cmdvel_tools.dummy_node:main',
+        'cmd_vel_generator = cmdvel_tools.cmd_vel_generator:main',
+        'cmdvel_attacker = cmdvel_tools.cmdvel_attacker:main',
+        'entropy_metrics = cmdvel_tools.entropy_metrics:main',
+        'cmdvel_predictor = cmdvel_tools.cmdvel_predictor:main',
+        'anomaly_detector = cmdvel_tools.anomaly_detector:main',
+        'csv_logger = cmdvel_tools.csv_logger:main',
+    ],
+},
+
+# Y en package.xml, si no están, estas dependencias:
+#   <exec_depend>rclpy</exec_depend>
+#   <exec_depend>geometry_msgs</exec_depend>
+#   <exec_depend>std_msgs</exec_depend>
+#   <exec_depend>python3-numpy</exec_depend>
+#   <exec_depend>python3-yaml</exec_depend>
