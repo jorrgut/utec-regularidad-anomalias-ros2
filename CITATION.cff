@@ -8,6 +8,7 @@ authors:
     affiliation: "Universidad Tecnológica del Uruguay (UTEC)"
     # orcid: "https://orcid.org/0000-0000-0000-0000"   # completar con tu ORCID
 version: "2026.1"
+doi: "10.5281/zenodo.24425122"
 date-released: "2026-11-21"
 license: MIT
 repository-code: "https://github.com/jorrgut/utec-regularidad-anomalias-ros2"

@@ -1,5 +1,8 @@
 # Análisis de regularidad y detección de anomalías en sistemas robóticos
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24425122.svg)](https://doi.org/10.5281/zenodo.24425122)
+[![smoke-test](https://github.com/jorrgut/utec-regularidad-anomalias-ros2/actions/workflows/smoke.yml/badge.svg)](https://github.com/jorrgut/utec-regularidad-anomalias-ros2/actions/workflows/smoke.yml)
+
 Códigos y entorno de laboratorio de la optativa *Análisis de Regularidad y Detección de Anomalías en Sistemas Robóticos*, Ingeniería en Mecatrónica, Universidad Tecnológica del Uruguay (UTEC).
 
 El libro del curso (*Introducción al análisis de regularidad y a la detección de anomalías en sistemas robóticos*) explica la teoría y las actividades; este repositorio tiene todo lo que se ejecuta: los scripts de las seis unidades, el proyecto integrador y dos entornos Docker reproducibles.
@@ -96,6 +99,8 @@ git checkout v2026.1
 ## Cómo citar
 
 Si usás estos materiales, citá la versión que usaste. Los datos están en [`CITATION.cff`](CITATION.cff) (GitHub ofrece el formato APA y BibTeX en "Cite this repository").
+
+> Gutiérrez, J. N. (2026). *Análisis de regularidad y detección de anomalías en sistemas robóticos: códigos y entorno de laboratorio* (versión 2026.1) [Software]. Zenodo. https://doi.org/10.5281/zenodo.24425122
 
 ## Licencia
 
